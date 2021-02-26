@@ -1,7 +1,7 @@
 
-import React, {useState} from 'react'
+import React, {useState, useEffect} from 'react'
 import { isEmpty, size } from 'lodash'
-import shortid, { isValid } from 'shortid'
+import { addDocument, deleteDocument, getCollection, updateDocument } from './actions'
 
 
 function App() {
@@ -11,6 +11,16 @@ function App() {
   const [id, setId] = useState("")
   const [error, setError] = useState(null)
 
+  useEffect(() => {
+  (async() => {
+      const result = await getCollection("tasks") //recibe el nombre de la collección en este caso tasks
+      if(result.statusResponse){
+        setTasks(result.data) //llevamos la data a las tareas para mostrarlas en pantalla
+      }
+  })()
+  }, [])
+
+  /*Valida que el text tenga valores, no esté vacío*/
   const validForm = () =>{
     let isValid = true
     setError(null)
@@ -21,24 +31,31 @@ function App() {
     return isValid
   }
 
-  /*Valida que el text tenga valores, no esté vacío*/
-  const addTask = (e) => {
+  //ADICIONAR TAREA
+  const addTask = async(e) => {
     e.preventDefault()
     if(!validForm()){
       return
     }
-    const newTask = {
-      id: shortid.generate(),
-      name: task
-    }
-    setTasks([...tasks, newTask])
+
+    const result = await addDocument("tasks", {name: task})
+    if (!result.statusResponse){
+      setError(result.error)
+      return
+    }    
+    setTasks([...tasks, {id: result.data.id, name: task}])
     setTask("")
   }
 
-  /*Método para guardar una tarea editada */
-  const saveTask = (e) => {
+  //EDITAR TAREA
+  const saveTask = async(e) => {
     e.preventDefault()
     if(!validForm()){
+      return
+    }
+    const result = await updateDocument("tasks", id, {name:task})
+    if(!result.statusResponse){
+      setError(result.error)
       return
     }
     const editedTasks = tasks.map(item => item.id === id ? {id, name: task} : item)
@@ -49,7 +66,12 @@ function App() {
   }
 
   /*Método para eliminar tareas, guarda todas las tareas que no tengan el id que se desea eliminar y llena nuevamente el vector de tareas*/
-  const deleteTask = (id) => {
+  const deleteTask = async(id) => {
+    const result = await deleteDocument("tasks", id)
+    if(!result.statusResponse){
+      setError(result.error)
+      return
+    }
     const filteredTasks = tasks.filter(task => task.id !== id)
     setTasks(filteredTasks)
   }
